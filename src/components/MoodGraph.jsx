@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import {
   LineChart,
   Line,
@@ -8,16 +9,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { useNavigate } from "react-router-dom";
-
-const data = [
-  { day: "Tue", mood: 4 },
-  { day: "Wed", mood: 3 },
-  { day: "Thu", mood: 2 },
-  { day: "Fri", mood: 2 },
-  { day: "Sat", mood: 1 },
-  { day: "Sun", mood: 3 },
-  { day: "Mon", mood: 5 },
-];
+import { getUserId } from "../utils/userId";
 
 const moodLabels = {
   1: "😭",
@@ -28,7 +20,19 @@ const moodLabels = {
 };
 
 export default function MoodGraph() {
+  const [data, setData] = useState([]);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const userId = getUserId();
+    fetch(`http://localhost:8080/api/daily-check/mood-graph?userId=${userId}`)
+      .then((res) => res.json())
+      .then((json) => setData(json))
+      .catch((err) => {
+        console.error("Failed to fetch mood data", err);
+        setData([]);
+      });
+  }, []);
 
   return (
     <div className="w-full bg-white/90 backdrop-blur-lg p-6 rounded-2xl shadow-xl border border-white/30 max-w-3xl mx-auto mt-10">

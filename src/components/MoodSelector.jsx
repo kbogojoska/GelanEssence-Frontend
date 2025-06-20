@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { getUserId } from "../utils/userId";
 
 const moods = [
   { label: "Happy", emoji: "😄", color: "bg-green-100" }, 
@@ -42,7 +43,7 @@ export default function MoodSelector() {
   const [selectedMood, setSelectedMood] = useState("Happy");
   const [selectedSymptoms, setSelectedSymptoms] = useState([]);
   const [note, setNote] = useState("");
-  const [saved, setSaved] = useState(false);
+  const [message, setMessage] = useState(null);
   const navigate = useNavigate();
 
   const symptomsToShow = moodSymptomsMap[selectedMood] || [];
@@ -53,23 +54,74 @@ export default function MoodSelector() {
         ? prev.filter((s) => s !== symptom)
         : [...prev, symptom]
     );
-    setSaved(false);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (selectedSymptoms.length === 0) return;
-    // Save logic here (API call etc)
-    setSaved(true);
-    setTimeout(() => setSaved(false), 3000);
+    
+    const payload = {
+      userId: getUserId(),
+      moodScore: selectedMood.toUpperCase(),
+      symptoms: selectedSymptoms,
+      notesFromTheDay: note
+    };
+
+    try {
+      const response = await fetch("http://localhost:8080/api/daily-check/dailycheck/create", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (response.ok) {
+        setMessage({ type: "success", text: "Your mood and symptoms have been saved! 🎉" });
+        
+        setSelectedMood("Happy");
+        setSelectedSymptoms([]);
+        setNote("");
+
+        setTimeout(() => setMessage(null), 3000);
+      } else {
+        setMessage({ type: "error", text: "Error saving mood check. You can only save once a day." });
+        
+        setSelectedMood("Happy");
+        setSelectedSymptoms([]);
+        setNote("");
+        
+        setTimeout(() => setMessage(null), 3000);
+      }
+    } catch (error) {
+      console.error("Save error:", error);
+      
+      setSelectedMood("Happy");
+      setSelectedSymptoms([]);
+      setNote("");
+      
+      setMessage({
+        type: "error",
+        text: "An unexpected error occurred while saving. You can only save a mood once a day."
+      });
+      setTimeout(() => setMessage(null), 3000);    }
   };
 
   const clearSymptoms = () => {
     setSelectedSymptoms([]);
-    setSaved(false);
   };
 
   return (
     <div className="w-full max-w-5xl mx-auto bg-white/90 backdrop-blur-lg p-8 rounded-2xl shadow-xl border border-white/30 mt-10">
+      {message && (
+        <div
+          className={`text-center py-4 px-6 mb-6 rounded-xl font-semibold text-lg shadow-md transition-all duration-300
+            ${message.type === "success" ? "bg-green-100 text-green-800 border border-green-300" : "bg-red-100 text-red-800 border border-red-300"}
+          `}
+        >
+          {message.text}
+        </div>
+      )}
+
       <h2 className="text-4xl font-semibold text-center text-purple-900 mb-8">
         How are you feeling today? <span className="text-3xl"></span>
       </h2>
@@ -87,7 +139,6 @@ export default function MoodSelector() {
               onClick={() => {
                 setSelectedMood(mood.label);
                 setSelectedSymptoms([]);
-                setSaved(false);
               }}
               aria-pressed={selectedMood === mood.label}
               aria-label={`Select mood ${mood.label}`}
@@ -161,7 +212,6 @@ export default function MoodSelector() {
           value={note}
           onChange={(e) => {
             setNote(e.target.value);
-            setSaved(false);
           }}
           rows={6}
         />
@@ -189,12 +239,6 @@ export default function MoodSelector() {
           View Report 📈
         </button>
       </section>
-
-      {saved && (
-        <p className="mt-6 text-center text-green-600 font-semibold animate-fadeIn">
-          Your mood and symptoms have been saved! 🎉
-        </p>
-      )}
     </div>
   );
 }
